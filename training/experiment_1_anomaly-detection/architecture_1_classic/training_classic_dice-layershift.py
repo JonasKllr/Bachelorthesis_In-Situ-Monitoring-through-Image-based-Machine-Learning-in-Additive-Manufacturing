@@ -3,19 +3,16 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import tensorflow as tf 
-from tensorflow.keras import datasets, layers, models
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 import pathlib
-from pathlib import Path
 from datetime import datetime
 
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 # Ordner mit Inhalt Struktur der Daten
-data_dir = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train'
+data_dir = r'/fzi/ids/qy134/no_backup/Datensatz_Wuerfel_layershift/train'
 data_dir = pathlib.Path(data_dir)     #liest den Pfad ein
 
 # Labels in Array schreiben
@@ -26,15 +23,7 @@ label_names = np.array([item.name for item in label_dir.glob('*')])
 list_ds = tf.data.Dataset.list_files([str(data_dir/'labels/*/*/*')])    
 
 # alle Pfade zu CAD-Bildern
-cad_path_wuerfel = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Wuerfel.png'
-cad_path_cone = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Cone.png'
-cad_path_halbkugel = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Halbkugel.png'
-cad_path_kugel = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Kugel.png'
-cad_path_pyramide = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Pyramide.png'
-cad_path_runddach_layershift = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Runddach_layershift.png'
-cad_path_runddach = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Runddach.png'
-cad_path_zuckerhut = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Zuckerhut.png'
-cad_path_zylinder = r'/fzi/ids/qy134/no_backup/Datensatz_gesamt/train/cad/Zylinder.png'
+cad_path_wuerfel = r'/fzi/ids/qy134/no_backup/Datensatz_Wuerfel_layershift/train/cad/Wuerfel.png'
 
 
 # Label abh. von Kamerabild einlesen. (gut=0 / schlecht=1)
@@ -65,42 +54,21 @@ def load_images(file_path):
 
   # Passenden CAD-Pfad zu image_camera aussuchen
   def wuerfel(): return tf.constant(cad_path_wuerfel)
-  def cone(): return tf.constant(cad_path_cone)
-  def halbkugel(): return tf.constant(cad_path_halbkugel)
-  def kugel(): return tf.constant(cad_path_kugel)
-  def pyramide(): return tf.constant(cad_path_pyramide)
-  def runddach_layershift(): return tf.constant(cad_path_runddach_layershift)
-  def runddach(): return tf.constant(cad_path_runddach)
-  def zuckerhut(): return tf.constant(cad_path_zuckerhut)
-  def zylinder(): return tf.constant(cad_path_zylinder)
 
   cad_path = tf.case([
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_black'), wuerfel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_clogged_nozzle'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_hinten'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_hinten_13'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links'), wuerfel),                   
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_rechts'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_rechts_15'), wuerfel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_Spaghetti'), wuerfel),
+                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_vorne_10'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_hinten_6'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links_15'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_vorne_5'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_vorne_16'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links_10'), wuerfel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Cone'), cone),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Cone_layershift_vorne'), cone),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Halbkugel'), halbkugel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Kugel'), kugel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Pyramide_2'), pyramide),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Pyramide_layershift_vorne'), pyramide),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Runddach'), runddach),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Runddach_layershift_hinten'), runddach_layershift),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Zuckerhut'), zuckerhut),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Zylinder'), zylinder),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Zylinder_layershift_hinten'), zylinder),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Kugel_Spaghetti'), kugel),
                       ])
   
   # CAD-Bild laden
@@ -110,7 +78,7 @@ def load_images(file_path):
   image_cad = tf.image.resize(image_cad, [140,310])
   
   return ({'camera_image': image_camera, 'cad_image': image_cad}, {'voll_connected': label})
-  # return [image_camera, image_cad], label
+
 
 def augmentation(file_path):
   
@@ -126,42 +94,21 @@ def augmentation(file_path):
 
   # Passenden CAD-Pfad zu image_camera aussuchen
   def wuerfel(): return tf.constant(cad_path_wuerfel)
-  def cone(): return tf.constant(cad_path_cone)
-  def halbkugel(): return tf.constant(cad_path_halbkugel)
-  def kugel(): return tf.constant(cad_path_kugel)
-  def pyramide(): return tf.constant(cad_path_pyramide)
-  def runddach_layershift(): return tf.constant(cad_path_runddach_layershift)
-  def runddach(): return tf.constant(cad_path_runddach)
-  def zuckerhut(): return tf.constant(cad_path_zuckerhut)
-  def zylinder(): return tf.constant(cad_path_zylinder)
 
   cad_path = tf.case([
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_black'), wuerfel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_clogged_nozzle'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_hinten'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_hinten_13'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links'), wuerfel),                   
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_rechts'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_rechts_15'), wuerfel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_Spaghetti'), wuerfel),
+                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_vorne_10'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_hinten_6'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links_15'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_vorne_5'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_vorne_16'), wuerfel),
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links_10'), wuerfel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Cone'), cone),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Cone_layershift_vorne'), cone),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Halbkugel'), halbkugel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Kugel'), kugel),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Pyramide_2'), pyramide),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Pyramide_layershift_vorne'), pyramide),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Runddach'), runddach),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Runddach_layershift_hinten'), runddach_layershift),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Zuckerhut'), zuckerhut),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Zylinder'), zylinder),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Zylinder_layershift_hinten'), zylinder),
-                      (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Kugel_Spaghetti'), kugel),
                       ])
   
   # CAD-Bild laden
@@ -171,24 +118,24 @@ def augmentation(file_path):
   image_cad = tf.image.resize(image_cad, [140,310])
   
   return ({'camera_image': image_camera, 'cad_image': image_cad}, {'voll_connected': label})  
-  
+
+
+
 
 labeled_ds = list_ds.map(load_images, num_parallel_calls=AUTOTUNE)
 augmentet_ds = list_ds.map(augmentation, num_parallel_calls=AUTOTUNE)
 complete_ds = labeled_ds.concatenate(augmentet_ds)
 
 # Dataset shuffle
-complete_ds = complete_ds.shuffle(tf.data.experimental.cardinality(complete_ds).numpy()/3, reshuffle_each_iteration=True)
+complete_ds = complete_ds.shuffle(tf.data.experimental.cardinality(complete_ds).numpy(), reshuffle_each_iteration=True)
 
 
 # Dataset in Trainigs-, Validierungs-, Testdaten teilen
 DATASET_SIZE = tf.data.experimental.cardinality(complete_ds).numpy()
 train_size = int(0.8 * DATASET_SIZE)
 
-
 train_ds = complete_ds.take(train_size)
 val_ds = complete_ds.skip(train_size)
-
 
 # Datasets in Batches aufteilel
 BATCH_SIZE = 2
@@ -233,7 +180,6 @@ x = tf.keras.layers.Dropout(0.25)(x)
 x = tf.keras.layers.Conv2D(filters=80, kernel_size=3, strides=(2, 2), padding='same', activation='elu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(x)
 x = tf.keras.layers.BatchNormalization()(x)
 x = tf.keras.layers.Conv2D(filters=80, kernel_size=3, strides=(2, 2), padding='same', activation='elu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(x)
-
 x = tf.keras.layers.Dropout(0.25)(x)
 
 
