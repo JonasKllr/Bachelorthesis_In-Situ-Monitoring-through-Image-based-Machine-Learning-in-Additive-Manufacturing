@@ -8,51 +8,16 @@ import os
 import pathlib
 from datetime import datetime
 
-
-AUTOTUNE = tf.data.experimental.AUTOTUNE
-
-# Ordner mit Inhalt Struktur der Daten
-data_dir = r'/fzi/ids/qy134/no_backup/Datensatz_Wuerfel_layershift/train'
-data_dir = pathlib.Path(data_dir)     #liest den Pfad ein
-
-# Labels in Array schreiben
-label_dir = data_dir / 'labels'
-label_names = np.array([item.name for item in label_dir.glob('*')])
-
-# Dataset aus allen Dateipfaden anlegen 
-list_ds = tf.data.Dataset.list_files([str(data_dir/'labels/*/*/*')])    
-
-# alle Pfade zu CAD-Bildern
-cad_path_wuerfel = r'/fzi/ids/qy134/no_backup/Datensatz_Wuerfel_layershift/train/cad/Wuerfel.png'
-
-
-# Label abh. von Kamerabild einlesen. (gut=0 / schlecht=1)
-def get_label(file_path):
-
-  parts = tf.strings.split(file_path, os.path.sep)
-
-  def gut(): return tf.constant(0)
-  def schlecht(): return tf.constant(1)
-
-  label = tf.case([(parts[-3] == tf.constant('gut'), gut),
-                   (parts[-3] == tf.constant('schlecht'), schlecht)]) 
-
-  return label                    
-
-
-# set (Kamerabild, CAD_Bild, Label) erstellen 
+                    
 def load_images(file_path):
-  
-  # Label einlesen
   label = get_label(file_path)
   
-  # Kamerabild laden 
   image_camera = tf.io.read_file(file_path)
   image_camera = tf.image.decode_png(image_camera, channels=1)
   image_camera = tf.image.convert_image_dtype(image_camera, dtype= tf.float32)
   image_camera = tf.image.resize(image_camera, [140,310])
 
-  # Passenden CAD-Pfad zu image_camera aussuchen
+  # get path to CAD image
   def wuerfel(): return tf.constant(cad_path_wuerfel)
 
   cad_path = tf.case([
@@ -71,28 +36,26 @@ def load_images(file_path):
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links_10'), wuerfel),
                       ])
   
-  # CAD-Bild laden
   image_cad = tf.io.read_file(cad_path)
   image_cad = tf.image.decode_png(image_cad, channels=1)
   image_cad = tf.image.convert_image_dtype(image_cad, dtype= tf.float32)
   image_cad = tf.image.resize(image_cad, [140,310])
   
-  return ({'camera_image': image_camera, 'cad_image': image_cad}, {'voll_connected': label})
+  return ({'camera_image': image_camera, 'cad_image': image_cad}, {'dense': label})
 
 
 def augmentation(file_path):
-  
-  # Label einlesen
   label = get_label(file_path)
   
-  # Kamerabild laden 
   image_camera = tf.io.read_file(file_path)
   image_camera = tf.image.decode_png(image_camera, channels=1)
   image_camera = tf.image.convert_image_dtype(image_camera, dtype= tf.float32)
   image_camera = tf.image.resize(image_camera, [140,310])
+
+  # image augmentation
   image_camera = tf.image.random_brightness(image_camera, max_delta=0.1)
 
-  # Passenden CAD-Pfad zu image_camera aussuchen
+  # get path to CAD image
   def wuerfel(): return tf.constant(cad_path_wuerfel)
 
   cad_path = tf.case([
@@ -111,41 +74,52 @@ def augmentation(file_path):
                       (tf.strings.split(file_path, os.path.sep)[-2] == tf.constant('Wuerfel_layershift_links_10'), wuerfel),
                       ])
   
-  # CAD-Bild laden
   image_cad = tf.io.read_file(cad_path)
   image_cad = tf.image.decode_png(image_cad, channels=1)
   image_cad = tf.image.convert_image_dtype(image_cad, dtype= tf.float32)
   image_cad = tf.image.resize(image_cad, [140,310])
   
-  return ({'camera_image': image_camera, 'cad_image': image_cad}, {'voll_connected': label})  
+  return ({'camera_image': image_camera, 'cad_image': image_cad}, {'dense': label})  
 
 
+def get_label(file_path):
+  def gut(): return tf.constant(0)
+  def schlecht(): return tf.constant(1)
+
+  parts = tf.strings.split(file_path, os.path.sep)
+  label = tf.case([(parts[-3] == tf.constant('gut'), gut),
+                   (parts[-3] == tf.constant('schlecht'), schlecht)]) 
+
+  return label
 
 
+# paths to CAD images
+cad_path_wuerfel = r'/PATH/TO/CAD/IMAGE'
+
+data_dir = r'/PATH/TO/DATA'
+data_dir = pathlib.Path(data_dir)
+
+label_dir = data_dir / 'labels'
+label_names = np.array([item.name for item in label_dir.glob('*')])
+
+list_ds = tf.data.Dataset.list_files([str(data_dir/'labels/*/*/*')])    
+
+AUTOTUNE = tf.data.experimental.AUTOTUNE
 labeled_ds = list_ds.map(load_images, num_parallel_calls=AUTOTUNE)
 augmentet_ds = list_ds.map(augmentation, num_parallel_calls=AUTOTUNE)
 complete_ds = labeled_ds.concatenate(augmentet_ds)
-
-# Dataset shuffle
 complete_ds = complete_ds.shuffle(tf.data.experimental.cardinality(complete_ds).numpy(), reshuffle_each_iteration=True)
 
-
-# Dataset in Trainigs-, Validierungs-, Testdaten teilen
 DATASET_SIZE = tf.data.experimental.cardinality(complete_ds).numpy()
 train_size = int(0.8 * DATASET_SIZE)
-
 train_ds = complete_ds.take(train_size)
 val_ds = complete_ds.skip(train_size)
 
-# Datasets in Batches aufteilel
 BATCH_SIZE = 2
 train_ds = train_ds.batch(BATCH_SIZE)
 val_ds = val_ds.batch (1)
 
-  
-
-
-############################## Netz ##############################
+############################## CNN ##############################
 img_heigth = 140
 img_width = 310
 
@@ -153,7 +127,7 @@ img_width = 310
 cam_input = tf.keras.Input(shape=(img_heigth, img_width, 1), name='camera_image')
 cad_input = tf.keras.Input(shape=(img_heigth, img_width, 1), name='cad_image')
 
-# zusammen fuehren
+# concatenate
 x = tf.keras.layers.concatenate([cam_input, cad_input])
 
 x = tf.keras.layers.Conv2D(filters=10, kernel_size=3, strides=(1, 1), padding='same', activation='elu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(x)
@@ -186,9 +160,8 @@ x = tf.keras.layers.Dropout(0.25)(x)
 x = tf.keras.layers.Flatten()(x)
 x = tf.keras.layers.Dense(240, activation='elu')(x)
 x = tf.keras.layers.Dropout(0.5)(x)
-fully_connected = tf.keras.layers.Dense(1, name='voll_connected')(x)
+fully_connected = tf.keras.layers.Dense(1, name='dense')(x)
 
-# Modell bauen
 model = tf.keras.Model(inputs=[cam_input, cad_input], outputs=fully_connected)
 
 model.compile(
@@ -196,25 +169,15 @@ model.compile(
               loss= tf.keras.losses.BinaryCrossentropy(from_logits=True),
               metrics=[tf.keras.metrics.BinaryAccuracy()]
               )
-
-
-# Model Plot
-# tf.keras.utils.plot_model(model, to_file='model_aktuell.png', show_shapes=True)
 model.summary()
 
-# Tensorboard callback
-log_dir = r'/fzi/ids/qy134/no_backup/Training_output/Tensorboard/Date' + datetime.now().strftime("%Y%m%d-%H%M%S")
+# callbacks
+log_dir = r'/PATH/Date' + datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=2)
-
-#Early Stopping
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True)
 
-# Training + Validiierung 
 model.fit(train_ds, epochs = 30, validation_data= val_ds, callbacks= [tensorboard_callback, early_stopping])
-
-
-# komplettes Modell speichern und aus diesem Skript loeschen
-model.save(r'/fzi/ids/qy134/no_backup/Training_output/Modell_speicher', overwrite= True)
+model.save(r'/PATH/TO/SAVE', overwrite= True)
 del model
 
 

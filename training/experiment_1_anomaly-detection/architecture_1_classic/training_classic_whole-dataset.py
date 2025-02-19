@@ -166,7 +166,7 @@ val_ds = complete_ds.skip(train_size)
 
 BATCH_SIZE = 2
 train_ds = train_ds.batch(BATCH_SIZE)
-val_ds = val_ds.batch (1)
+val_ds = val_ds.batch(1)
 
 ############################## CNN ##############################
 img_heigth = 140
@@ -203,7 +203,6 @@ x = tf.keras.layers.Dropout(0.25)(x)
 x = tf.keras.layers.Conv2D(filters=80, kernel_size=3, strides=(2, 2), padding='same', activation='elu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(x)
 x = tf.keras.layers.BatchNormalization()(x)
 x = tf.keras.layers.Conv2D(filters=80, kernel_size=3, strides=(2, 2), padding='same', activation='elu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(x)
-
 x = tf.keras.layers.Dropout(0.25)(x)
 
 
@@ -228,5 +227,3 @@ early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=8
 model.fit(train_ds, epochs = 30, validation_data= val_ds, callbacks= [tensorboard_callback, early_stopping])
 model.save(r'/PATH/TO/SAVE', overwrite= True)
 del model
-
-
